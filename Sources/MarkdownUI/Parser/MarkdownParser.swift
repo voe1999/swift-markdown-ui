@@ -1,11 +1,11 @@
-@_implementationOnly import cmark_gfm
+import cmark_gfm
 import Foundation
 
 public extension [BlockNode]
 {
     init(markdown: String)
     {
-        let blocks = UnsafeNode.parseMarkdown(markdown)
+        let blocks = UnsafeCMarkNode.parseMarkdown(markdown)
         { document in
             document.children.compactMap(BlockNode.init(unsafeNode:))
         }
@@ -14,7 +14,7 @@ public extension [BlockNode]
 
     func renderMarkdown() -> String
     {
-        UnsafeNode.makeDocument(self)
+        UnsafeCMarkNode.makeDocument(self)
         { document in
             String(cString: cmark_render_commonmark(document, CMARK_OPT_DEFAULT, 0))
         } ?? ""
@@ -22,7 +22,7 @@ public extension [BlockNode]
 
     func renderPlainText() -> String
     {
-        UnsafeNode.makeDocument(self)
+        UnsafeCMarkNode.makeDocument(self)
         { document in
             String(cString: cmark_render_plaintext(document, CMARK_OPT_DEFAULT, 0))
         } ?? ""
@@ -30,16 +30,16 @@ public extension [BlockNode]
 
     func renderHTML() -> String
     {
-        UnsafeNode.makeDocument(self)
+        UnsafeCMarkNode.makeDocument(self)
         { document in
             String(cString: cmark_render_html(document, CMARK_OPT_DEFAULT, nil))
         } ?? ""
     }
 }
 
-private extension BlockNode
+public extension BlockNode
 {
-    init?(unsafeNode: UnsafeNode)
+    init?(unsafeNode: UnsafeCMarkNode)
     {
         switch unsafeNode.nodeType
         {
@@ -97,9 +97,9 @@ private extension BlockNode
     }
 }
 
-private extension RawListItem
+public extension RawListItem
 {
-    init(unsafeNode: UnsafeNode)
+    init(unsafeNode: UnsafeCMarkNode)
     {
         guard unsafeNode.nodeType == .item else
         {
@@ -109,9 +109,9 @@ private extension RawListItem
     }
 }
 
-private extension RawTaskListItem
+public extension RawTaskListItem
 {
-    init(unsafeNode: UnsafeNode)
+    init(unsafeNode: UnsafeCMarkNode)
     {
         guard unsafeNode.nodeType == .taskListItem || unsafeNode.nodeType == .item else
         {
@@ -124,9 +124,9 @@ private extension RawTaskListItem
     }
 }
 
-private extension RawTableRow
+public extension RawTableRow
 {
-    init(unsafeNode: UnsafeNode)
+    init(unsafeNode: UnsafeCMarkNode)
     {
         guard unsafeNode.nodeType == .tableRow || unsafeNode.nodeType == .tableHead else
         {
@@ -136,9 +136,9 @@ private extension RawTableRow
     }
 }
 
-private extension RawTableCell
+public extension RawTableCell
 {
-    init(unsafeNode: UnsafeNode)
+    init(unsafeNode: UnsafeCMarkNode)
     {
         guard unsafeNode.nodeType == .tableCell else
         {
@@ -148,9 +148,9 @@ private extension RawTableCell
     }
 }
 
-private extension InlineNode
+public extension InlineNode
 {
-    init?(unsafeNode: UnsafeNode)
+    init?(unsafeNode: UnsafeCMarkNode)
     {
         switch unsafeNode.nodeType
         {
@@ -187,9 +187,9 @@ private extension InlineNode
     }
 }
 
-private typealias UnsafeNode = UnsafeMutablePointer<cmark_node>
+public typealias UnsafeCMarkNode = UnsafeMutablePointer<cmark_node>
 
-private extension UnsafeNode
+public extension UnsafeCMarkNode
 {
     var nodeType: NodeType
     {
@@ -269,7 +269,7 @@ private extension UnsafeNode
 
     static func parseMarkdown<ResultType>(
         _ markdown: String,
-        body: (UnsafeNode) throws -> ResultType
+        body: (UnsafeCMarkNode) throws -> ResultType
     ) rethrows -> ResultType?
     {
         cmark_gfm_core_extensions_ensure_registered()
@@ -314,43 +314,43 @@ private extension UnsafeNode
 
     static func makeDocument<ResultType>(
         _ blocks: [BlockNode],
-        body: (UnsafeNode) throws -> ResultType
+        body: (UnsafeCMarkNode) throws -> ResultType
     ) rethrows -> ResultType?
     {
         cmark_gfm_core_extensions_ensure_registered()
         guard let document = cmark_node_new(CMARK_NODE_DOCUMENT) else { return nil }
-        blocks.compactMap(UnsafeNode.make).forEach { cmark_node_append_child(document, $0) }
+        blocks.compactMap(UnsafeCMarkNode.make).forEach { cmark_node_append_child(document, $0) }
 
         defer { cmark_node_free(document) }
         return try body(document)
     }
 
-    static func make(_ block: BlockNode) -> UnsafeNode?
+    static func make(_ block: BlockNode) -> UnsafeCMarkNode?
     {
         switch block
         {
         case let .blockquote(children):
             guard let node = cmark_node_new(CMARK_NODE_BLOCK_QUOTE) else { return nil }
-            children.compactMap(UnsafeNode.make).forEach { cmark_node_append_child(node, $0) }
+            children.compactMap(UnsafeCMarkNode.make).forEach { cmark_node_append_child(node, $0) }
             return node
         case let .bulletedList(isTight, items):
             guard let node = cmark_node_new(CMARK_NODE_LIST) else { return nil }
             cmark_node_set_list_type(node, CMARK_BULLET_LIST)
             cmark_node_set_list_tight(node, isTight ? 1 : 0)
-            items.compactMap(UnsafeNode.make).forEach { cmark_node_append_child(node, $0) }
+            items.compactMap(UnsafeCMarkNode.make).forEach { cmark_node_append_child(node, $0) }
             return node
         case let .numberedList(isTight, start, items):
             guard let node = cmark_node_new(CMARK_NODE_LIST) else { return nil }
             cmark_node_set_list_type(node, CMARK_ORDERED_LIST)
             cmark_node_set_list_tight(node, isTight ? 1 : 0)
             cmark_node_set_list_start(node, Int32(start))
-            items.compactMap(UnsafeNode.make).forEach { cmark_node_append_child(node, $0) }
+            items.compactMap(UnsafeCMarkNode.make).forEach { cmark_node_append_child(node, $0) }
             return node
         case let .taskList(isTight, items):
             guard let node = cmark_node_new(CMARK_NODE_LIST) else { return nil }
             cmark_node_set_list_type(node, CMARK_BULLET_LIST)
             cmark_node_set_list_tight(node, isTight ? 1 : 0)
-            items.compactMap(UnsafeNode.make).forEach { cmark_node_append_child(node, $0) }
+            items.compactMap(UnsafeCMarkNode.make).forEach { cmark_node_append_child(node, $0) }
             return node
         case let .codeBlock(fenceInfo, content):
             guard let node = cmark_node_new(CMARK_NODE_CODE_BLOCK) else { return nil }
@@ -366,12 +366,12 @@ private extension UnsafeNode
             return node
         case let .paragraph(content):
             guard let node = cmark_node_new(CMARK_NODE_PARAGRAPH) else { return nil }
-            content.compactMap(UnsafeNode.make).forEach { cmark_node_append_child(node, $0) }
+            content.compactMap(UnsafeCMarkNode.make).forEach { cmark_node_append_child(node, $0) }
             return node
         case let .heading(level, content):
             guard let node = cmark_node_new(CMARK_NODE_HEADING) else { return nil }
             cmark_node_set_heading_level(node, Int32(level))
-            content.compactMap(UnsafeNode.make).forEach { cmark_node_append_child(node, $0) }
+            content.compactMap(UnsafeCMarkNode.make).forEach { cmark_node_append_child(node, $0) }
             return node
         case let .table(columnAlignments, rows):
             guard let table = cmark_find_syntax_extension("table"),
@@ -382,7 +382,7 @@ private extension UnsafeNode
             cmark_gfm_extensions_set_table_columns(node, UInt16(columnAlignments.count))
             var alignments = columnAlignments.map { $0.rawValue.asciiValue! }
             cmark_gfm_extensions_set_table_alignments(node, UInt16(columnAlignments.count), &alignments)
-            rows.compactMap(UnsafeNode.make).forEach { cmark_node_append_child(node, $0) }
+            rows.compactMap(UnsafeCMarkNode.make).forEach { cmark_node_append_child(node, $0) }
             if let header = cmark_node_first_child(node)
             {
                 cmark_gfm_extensions_set_table_row_is_header(header, 1)
@@ -394,14 +394,14 @@ private extension UnsafeNode
         }
     }
 
-    static func make(_ item: RawListItem) -> UnsafeNode?
+    static func make(_ item: RawListItem) -> UnsafeCMarkNode?
     {
         guard let node = cmark_node_new(CMARK_NODE_ITEM) else { return nil }
-        item.children.compactMap(UnsafeNode.make).forEach { cmark_node_append_child(node, $0) }
+        item.children.compactMap(UnsafeCMarkNode.make).forEach { cmark_node_append_child(node, $0) }
         return node
     }
 
-    static func make(_ item: RawTaskListItem) -> UnsafeNode?
+    static func make(_ item: RawTaskListItem) -> UnsafeCMarkNode?
     {
         guard let tasklist = cmark_find_syntax_extension("tasklist"),
               let node = cmark_node_new_with_ext(CMARK_NODE_ITEM, tasklist) else
@@ -409,33 +409,33 @@ private extension UnsafeNode
             return nil
         }
         cmark_gfm_extensions_set_tasklist_item_checked(node, item.isCompleted)
-        item.children.compactMap(UnsafeNode.make).forEach { cmark_node_append_child(node, $0) }
+        item.children.compactMap(UnsafeCMarkNode.make).forEach { cmark_node_append_child(node, $0) }
         return node
     }
 
-    static func make(_ tableRow: RawTableRow) -> UnsafeNode?
+    static func make(_ tableRow: RawTableRow) -> UnsafeCMarkNode?
     {
         guard let table = cmark_find_syntax_extension("table"),
               let node = cmark_node_new_with_ext(CMARK_NODE_TABLE_ROW, table) else
         {
             return nil
         }
-        tableRow.cells.compactMap(UnsafeNode.make).forEach { cmark_node_append_child(node, $0) }
+        tableRow.cells.compactMap(UnsafeCMarkNode.make).forEach { cmark_node_append_child(node, $0) }
         return node
     }
 
-    static func make(_ tableCell: RawTableCell) -> UnsafeNode?
+    static func make(_ tableCell: RawTableCell) -> UnsafeCMarkNode?
     {
         guard let table = cmark_find_syntax_extension("table"),
               let node = cmark_node_new_with_ext(CMARK_NODE_TABLE_CELL, table) else
         {
             return nil
         }
-        tableCell.content.compactMap(UnsafeNode.make).forEach { cmark_node_append_child(node, $0) }
+        tableCell.content.compactMap(UnsafeCMarkNode.make).forEach { cmark_node_append_child(node, $0) }
         return node
     }
 
-    static func make(_ inline: InlineNode) -> UnsafeNode?
+    static func make(_ inline: InlineNode) -> UnsafeCMarkNode?
     {
         switch inline
         {
@@ -457,11 +457,11 @@ private extension UnsafeNode
             return node
         case let .emphasis(children):
             guard let node = cmark_node_new(CMARK_NODE_EMPH) else { return nil }
-            children.compactMap(UnsafeNode.make).forEach { cmark_node_append_child(node, $0) }
+            children.compactMap(UnsafeCMarkNode.make).forEach { cmark_node_append_child(node, $0) }
             return node
         case let .strong(children):
             guard let node = cmark_node_new(CMARK_NODE_STRONG) else { return nil }
-            children.compactMap(UnsafeNode.make).forEach { cmark_node_append_child(node, $0) }
+            children.compactMap(UnsafeCMarkNode.make).forEach { cmark_node_append_child(node, $0) }
             return node
         case let .strikethrough(children):
             guard let strikethrough = cmark_find_syntax_extension("strikethrough"),
@@ -469,23 +469,23 @@ private extension UnsafeNode
             {
                 return nil
             }
-            children.compactMap(UnsafeNode.make).forEach { cmark_node_append_child(node, $0) }
+            children.compactMap(UnsafeCMarkNode.make).forEach { cmark_node_append_child(node, $0) }
             return node
         case let .link(destination, children):
             guard let node = cmark_node_new(CMARK_NODE_LINK) else { return nil }
             cmark_node_set_url(node, destination)
-            children.compactMap(UnsafeNode.make).forEach { cmark_node_append_child(node, $0) }
+            children.compactMap(UnsafeCMarkNode.make).forEach { cmark_node_append_child(node, $0) }
             return node
         case let .image(source, children):
             guard let node = cmark_node_new(CMARK_NODE_IMAGE) else { return nil }
             cmark_node_set_url(node, source)
-            children.compactMap(UnsafeNode.make).forEach { cmark_node_append_child(node, $0) }
+            children.compactMap(UnsafeCMarkNode.make).forEach { cmark_node_append_child(node, $0) }
             return node
         }
     }
 }
 
-private enum NodeType: String
+public enum NodeType: String
 {
     case document
     case blockquote = "block_quote"
@@ -521,18 +521,18 @@ private enum NodeType: String
     case taskListItem = "tasklist"
 }
 
-private struct UnsafeNodeSequence: Sequence
+public struct UnsafeNodeSequence: Sequence
 {
-    struct Iterator: IteratorProtocol
+    public struct Iterator: IteratorProtocol
     {
-        private var node: UnsafeNode?
+        private var node: UnsafeCMarkNode?
 
-        init(_ node: UnsafeNode?)
+        init(_ node: UnsafeCMarkNode?)
         {
             self.node = node
         }
 
-        mutating func next() -> UnsafeNode?
+        public mutating func next() -> UnsafeCMarkNode?
         {
             guard let node else { return nil }
             defer { self.node = cmark_node_next(node) }
@@ -540,14 +540,14 @@ private struct UnsafeNodeSequence: Sequence
         }
     }
 
-    private let node: UnsafeNode?
+    private let node: UnsafeCMarkNode?
 
-    init(_ node: UnsafeNode?)
+    init(_ node: UnsafeCMarkNode?)
     {
         self.node = node
     }
 
-    func makeIterator() -> Iterator
+    public func makeIterator() -> Iterator
     {
         .init(node)
     }
