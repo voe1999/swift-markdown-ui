@@ -1,6 +1,6 @@
 import Foundation
 
-enum InlineNode: Hashable {
+public enum InlineNode: Hashable {
   case text(String)
   case softBreak
   case lineBreak
@@ -13,8 +13,8 @@ enum InlineNode: Hashable {
   case image(source: String, children: [InlineNode])
 }
 
-extension InlineNode {
-  var children: [InlineNode] {
+public extension InlineNode {
+    public var children: [InlineNode] {
     get {
       switch self {
       case .emphasis(let children):

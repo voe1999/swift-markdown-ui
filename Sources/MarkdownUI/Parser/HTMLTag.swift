@@ -1,15 +1,15 @@
 import Foundation
 
-struct HTMLTag {
+public struct HTMLTag {
   let name: String
 }
 
-extension HTMLTag {
+public extension HTMLTag {
   private enum Constants {
     static let tagExpression = try! NSRegularExpression(pattern: "<\\/?([a-zA-Z0-9]+)[^>]*>")
   }
 
-  init?(_ description: String) {
+    public  init?(_ description: String) {
     guard
       let match = Constants.tagExpression.firstMatch(
         in: description,

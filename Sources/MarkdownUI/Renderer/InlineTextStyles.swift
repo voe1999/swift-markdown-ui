@@ -1,6 +1,6 @@
 import Foundation
 
-struct InlineTextStyles {
+public struct InlineTextStyles {
   let code: TextStyle
   let emphasis: TextStyle
   let strong: TextStyle

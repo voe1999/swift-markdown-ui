@@ -1,12 +1,12 @@
 import Foundation
 
-extension Sequence where Element == InlineNode {
+public extension Sequence where Element == InlineNode {
   func rewrite(_ r: (InlineNode) throws -> [InlineNode]) rethrows -> [InlineNode] {
     try self.flatMap { try $0.rewrite(r) }
   }
 }
 
-extension InlineNode {
+public extension InlineNode {
   func rewrite(_ r: (InlineNode) throws -> [InlineNode]) rethrows -> [InlineNode] {
     var inline = self
     inline.children = try self.children.rewrite(r)
